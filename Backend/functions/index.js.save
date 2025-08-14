@@ -1,0 +1,198 @@
+
+
+const functions = require("firebase-functions/v1");
+const admin = require("firebase-admin");
+const axios = require("axios");
+
+admin.initializeApp();
+const db = admin.firestore();
+
+// ---- Ollama 連線設定 ----
+let ollamaCfg = {};
+try { ollamaCfg = (functions.config().ollama) || {}; } catch (_) {}
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || ollamaCfg.base_url || "https://35.239.196.207.nip.io";
+const OLLAMA_MODEL    = process.env.OLLAMA_MODEL    || ollamaCfg.model    || "llama3.2:3b-instruct-q4_K_M";
+
+// ---- 全域 strictPrompt（集中管理；開聊時快照）----
+const DEFAULT_STRICT = `[Behavior Rules]
+- 直率真誠，避免過度客套或頻繁道歉；忠實反映使用者個性。
+- 不得洩漏或索取任何隱私（姓名、電話、Email、地址、ID）。
+- 你無法也不會存取使用者手機、任何 App、檔案、相機、麥克風或系統設定。
+- 不宣稱在現實世界執行動作；你只能產出文字。
+- 不提供外部連結、下載或要求任何權限。
+[Style]
+- 自然、簡潔、有溫度；越界時清楚劃界並換話題。`;
+
+let STRICT_CACHE = { text: null, version: 0, loaded: false };
+async function getStrictGlobal() {
+  if (STRICT_CACHE.loaded) return STRICT_CACHE;
+  const snap = await db.collection("configs").doc("llm").get();
+  if (snap.exists && snap.get("strictPrompt")) {
+    STRICT_CACHE.text = snap.get("strictPrompt");
+    STRICT_CACHE.version = snap.get("version") || 1;
+  } else {
+    STRICT_CACHE.text = DEFAULT_STRICT;
+    STRICT_CACHE.version = 1;
+  }
+  STRICT_CACHE.loaded = true;
+  return STRICT_CACHE;
+}
+
+function buildSystemPrompt(persona) {
+  const strict = persona.strictPrompt || DEFAULT_STRICT;
+  return `${strict}
+
+[Persona]
+MBTI: ${persona.mbti}
+Traits & preferences: ${persona.basePrompt}`;
+}
+
+// ---- 1) upsertPersona：更新/建立 persona（可帶 strictPrompt 覆蓋全域）----
+exports.upsertPersona = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Sign in required");
+  const uid = context.auth.uid;
+  const { mbti, basePrompt, strictPrompt } = data || {};
+  if (!mbti || !basePrompt) throw new functions.https.HttpsError("invalid-argument", "mbti and basePrompt required");
+
+  await db.collection("users").doc(uid).set({
+    persona: {
+      mbti,
+      basePrompt,
+      ...(strictPrompt !== undefined ? { strictPrompt } : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+  }, { merge: true });
+
+  return { ok: true };
+});
+
+// ---- 2) startUserAIChat：用我的 persona 開 user↔AI 聊天（快照 strict）----
+exports.startUserAIChat = functions.https.onCall(async (_data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Sign in required");
+  const uid = context.auth.uid;
+
+  const userDoc = await db.collection("users").doc(uid).get();
+  const persona = userDoc.get("persona");
+  if (!persona) throw new functions.https.HttpsError("failed-precondition", "Persona not set");
+
+  const strictCfg = await getStrictGlobal();
+  const chosenStrict = persona.strictPrompt || strictCfg.text;
+
+  const chatRef = db.collection("chats").doc();
+  await chatRef.set({
+    kind: "user-ai",
+    participantKeys: [ `user:${uid}`, "ai" ],
+    participants: [ { type: "user", uid }, { type: "ai", ownerUid: uid } ],
+    personaSnapshot: {
+      mbti: persona.mbti,
+      basePrompt: persona.basePrompt,
+      strictPrompt: chosenStrict,
+      strictVersionUsed: persona.strictPrompt ? "user-override" : strictCfg.version
+    },
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { chatId: chatRef.id };
+});
+
+// ---- 3) startUserUserChat：建立用戶↔用戶聊天（選配）----
+exports.startUserUserChat = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Sign in required");
+  const me = context.auth.uid;
+  const other = data?.otherUid;
+  if (!other) throw new functions.https.HttpsError("invalid-argument", "otherUid required");
+
+  const chatRef = db.collection("chats").doc();
+  await chatRef.set({
+    kind: "user-user",
+    participantKeys: [ `user:${me}`, `user:${other}` ],
+    participants: [ { type: "user", uid: me }, { type: "user", uid: other } ],
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { chatId: chatRef.id };
+});
+
+// ---- 4) onUserMessageWrite：user-ai 新訊息 → 呼叫 Ollama → 寫回回覆 ----
+exports.onUserMessageWrite = functions.firestore
+  .document("chats/{chatId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const msg = snap.data();
+    if (!msg || msg.role !== "user") return;
+
+    const chatId = context.params.chatId;
+    const chatRef = db.collection("chats").doc(chatId);
+    const chatSnap = await chatRef.get();
+    if (!chatSnap.exists) return;
+
+    const chat = chatSnap.data();
+    if (!chat || chat.kind !== "user-ai") return;
+
+    const persona = chat.personaSnapshot || { mbti: "ENFP", basePrompt: "" };
+
+    // 取最近 20 則歷史
+    const histSnap = await chatRef.collection("messages")
+      .orderBy("createdAt", "asc").limitToLast(20).get();
+    const history = histSnap.docs.map(d => d.data());
+
+    const systemPrompt = buildSystemPrompt(persona);
+    const ollamaMessages = [
+      { role: "system", content: systemPrompt },
+      ...history.map(m => ({ role: m.role, content: m.text })),
+    ];
+
+    try {
+      const res = await axios.post(`${OLLAMA_BASE_URL}/api/chat`, {
+        model: OLLAMA_MODEL,
+        messages: ollamaMessages,
+        stream: false,
+      }, { timeout: 60000 });
+
+      const aiText =
+        (res.data && res.data.message && res.data.message.content) ||
+        (res.data && res.data.choices && res.data.choices[0] && res.data.choices[0].message && res.data.choices[0].message.content) ||
+        "(no reply)";
+
+      await chatRef.collection("messages").add({
+        role: "assistant",
+        senderId: "ai",
+        text: aiText,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "sent",
+      });
+      await chatRef.update({ lastMessageAt: admin.firestore.FieldValue.serverTimestamp() });
+    } catch (e) {
+      await chatRef.collection("messages").add({
+        role: "assistant",
+        senderId: "ai",
+        text: "(AI failed to respond. Please try again.)",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "error",
+      });
+      console.error("ollama error", e?.message || e);
+    }
+  });
+
+// --- upsertForm: write forms/{formId} with full JSON ---
+exports.upsertForm = functions.region("us-central1").https.onCall(async (raw, context) => {
+  // 兼容 shell/客戶端：shell 可能傳 { data: {...} }
+  const data = (raw && raw.data) ? raw.data : (raw || {});
+  const { formId, form, __devBypass } = data || {};
+
+  // 登入檢查（dev 可用 __devBypass；上線請移除）
+  if (!context.auth && !__devBypass) {
+    throw new functions.https.HttpsError("unauthenticated", "Sign in required");
+  }
+  if (!formId || !form) {
+    throw new functions.https.HttpsError("invalid-argument", "formId and form are required");
+  }
+
+  await db.collection("forms").doc(formId).set(form, { merge: true });
+  return { ok: true };
+});
+
+
+
+
+

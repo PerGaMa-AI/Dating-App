@@ -1,0 +1,10 @@
+{
+  "projects": {
+    "default": "dating-app-pergama",
+    "prod": "dating-app-pergama",
+    "dev": "dating-app-pergama-dev",
+    "finance app": "finance-app-2025-9d24e"
+  },
+  "targets": {},
+  "etags": {}
+}
