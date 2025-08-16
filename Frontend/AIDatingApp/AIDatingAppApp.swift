@@ -29,17 +29,26 @@ struct AIDatingAppApp: App {
         } else {
             print("❌ FirebaseApp not configured")
         }
+        
+       
+
+        if let user = Auth.auth().currentUser {
+             print("启动时已登录用户 UID: \(user.uid), isAnonymous: \(user.isAnonymous)")
+         } else {
+             print("启动时没有已登录用户")
+         }
+
 
         // （可保留）先行匿名登入；RootGate 內也會保險簽一次，不會衝突
-        if Auth.auth().currentUser == nil {
-            Auth.auth().signInAnonymously { result, error in
-                if let error = error {
-                    print("❌ Anonymous sign-in failed:", error)
-                } else {
-                    print("✅ Signed in as:", result?.user.uid ?? "nil")
-                }
-            }
-        }
+//        if Auth.auth().currentUser == nil {
+//            Auth.auth().signInAnonymously { result, error in
+//                if let error = error {
+//                    print("❌ Anonymous sign-in failed:", error)
+//                } else {
+//                    print("✅ Signed in as:", result?.user.uid ?? "nil")
+//                }
+//            }
+//        }
     }
 
     var body: some Scene {

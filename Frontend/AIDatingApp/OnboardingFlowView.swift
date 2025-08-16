@@ -21,9 +21,14 @@ final class OnboardingVM: ObservableObject {
   // 讀取 Firestore 上的表單
   func boot() async {
     // 建議：先確保有身份，避免 rules 限制讀不到 forms/*
-    if Auth.auth().currentUser == nil {
-      _ = try? await Auth.auth().signInAnonymously()
-    }
+//    if Auth.auth().currentUser == nil {
+//      _ = try? await Auth.auth().signInAnonymously()
+//    }
+      guard Auth.auth().currentUser != nil else {
+          await MainActor.run { self.errorText = "Please sign in first" }
+          return
+      }
+
     do {
       let db = Firestore.firestore()
       let snap = try await db.collection("forms").document(formId).getDocument()

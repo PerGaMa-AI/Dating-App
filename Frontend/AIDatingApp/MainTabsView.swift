@@ -30,4 +30,4 @@ struct MainTabsView: View {
 // 先放占位頁
 struct MatchView: View { var body: some View { Text("Match").padding() } }
 struct TBDView: View { var body: some View { Text("Coming soon").padding() } }
-struct SettingsView: View { var body: some View { Text("Settings").padding() } }
+//struct SettingsView: View { var body: some View { Text("Settings").padding() } }

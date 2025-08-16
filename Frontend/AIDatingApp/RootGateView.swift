@@ -16,19 +16,44 @@ final class AppGateVM: ObservableObject {
     private let formId = "onboarding_v1"
     private var obListener: ListenerRegistration?
     private var userListener: ListenerRegistration?
+    
+    //监听 Auth 状态
+    private var authHandle: AuthStateDidChangeListenerHandle?
+
+    init() {
+        //登录/退出都会回调这里
+        authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, _ in
+            guard let self = self else { return }
+            Task { await self.boot() }
+        }
+    }
 
     deinit {
         obListener?.remove()
         userListener?.remove()
+        //移除监听
+        if let h = authHandle {
+            Auth.auth().removeStateDidChangeListener(h)
+        }
     }
 
     /// 使用 async，並在 View 以 `.task { await boot() }` 呼叫
     func boot() async {
         // 1) 確保有身份
-        if Auth.auth().currentUser == nil {
-            _ = try? await Auth.auth().signInAnonymously()
+//        if Auth.auth().currentUser == nil {
+//            _ = try? await Auth.auth().signInAnonymously()
+//        }
+//        guard let uid = Auth.auth().currentUser?.uid else { return }
+        
+        // 未登录就直接放行到 Auth 界面
+     
+        let user = Auth.auth().currentUser
+        guard let uid = user?.uid, user?.isAnonymous == false else {
+            await MainActor.run { isLoading = false }
+            return
         }
-        guard let uid = Auth.auth().currentUser?.uid else { return }
+
+        
         let db = Firestore.firestore()
 
         await MainActor.run { self.isLoading = true }
@@ -66,15 +91,30 @@ struct RootGateView: View {
 
     var body: some View {
         Group {
-            if gate.isLoading {
+//            if gate.isLoading {
+//                ProgressView("Booting…")
+
+//            } else if Auth.auth().currentUser == nil {
+//                AuthSwitcherView()
+//
+            //未登录时显示登录/注册界面
+            let user = Auth.auth().currentUser
+            if user == nil || user?.isAnonymous == true  {
+                AuthSwitcherView(onSignedIn: {
+                Task { await gate.boot() }
+            })
+            //已登录但仍在加载监听
+            } else if gate.isLoading {
                 ProgressView("Booting…")
+
             } else if gate.shouldShowOnboarding {
                 // 把 gate 注入 Onboarding，完成時也能手動切換（雙保險）
-                OnboardingFlowView()
-                    .environmentObject(gate)
+                OnboardingFlowView().environmentObject(gate)
+                
             } else {
                 MainTabsView(pinnedAIChatId: gate.pinnedAIChatId)
             }
+
         }
         // 以 async 方式啟動 gate
         .task { await gate.boot() }

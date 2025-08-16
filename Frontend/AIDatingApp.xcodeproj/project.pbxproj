@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		44CDB0372E4FB35F0044F7E3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44CDB0362E4FB35F0044F7E3 /* SettingsView.swift */; };
 		E563C9A62E4887E5002DA9D3 /* AIDatingAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E563C9A52E4887E5002DA9D3 /* AIDatingAppApp.swift */; };
 		E563C9A82E4887E5002DA9D3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E563C9A72E4887E5002DA9D3 /* ContentView.swift */; };
 		E563C9AA2E4887E5002DA9D3 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = E563C9A92E4887E5002DA9D3 /* Item.swift */; };
@@ -74,6 +75,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		44CDB0362E4FB35F0044F7E3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E563C9A22E4887E5002DA9D3 /* AIDatingApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AIDatingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E563C9A52E4887E5002DA9D3 /* AIDatingAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIDatingAppApp.swift; sourceTree = "<group>"; };
 		E563C9A72E4887E5002DA9D3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -103,6 +105,19 @@
 		E58B2EE32E4CD61000C0B14A /* RootGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootGateView.swift; sourceTree = "<group>"; };
 		E58B2EE52E4CD96F00C0B14A /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		44CDB0292E4F9D190044F7E3 /* Services */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Services;
+			sourceTree = "<group>";
+		};
+		44CDB02C2E4F9D590044F7E3 /* Views */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E563C99F2E4887E5002DA9D3 /* Frameworks */ = {
@@ -169,6 +184,9 @@
 		E563C9A42E4887E5002DA9D3 /* AIDatingApp */ = {
 			isa = PBXGroup;
 			children = (
+				44CDB0362E4FB35F0044F7E3 /* SettingsView.swift */,
+				44CDB02C2E4F9D590044F7E3 /* Views */,
+				44CDB0292E4F9D190044F7E3 /* Services */,
 				E563C9D22E4888D3002DA9D3 /* Persona.swift */,
 				E563C9E32E488968002DA9D3 /* MemoryStore.swift */,
 				E563C9E52E48898E002DA9D3 /* LLMProvider.swift */,
@@ -232,6 +250,10 @@
 				E563C9A02E4887E5002DA9D3 /* Resources */,
 			);
 			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				44CDB0292E4F9D190044F7E3 /* Services */,
+				44CDB02C2E4F9D590044F7E3 /* Views */,
 			);
 			name = AIDatingApp;
 			productName = AIDatingApp;
@@ -346,6 +368,7 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				E563C9E62E48898E002DA9D3 /* LLMProvider.swift in Sources */,
+				44CDB0372E4FB35F0044F7E3 /* SettingsView.swift in Sources */,
 				E563C9D32E4888D3002DA9D3 /* Persona.swift in Sources */,
 				E563C9EA2E4889FF002DA9D3 /* ChatViewModel.swift in Sources */,
 				E563C9EE2E488D49002DA9D3 /* ChatMessage.swift in Sources */,
@@ -517,6 +540,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"AIDatingApp/Preview Content\"";
+				DEVELOPMENT_TEAM = YXZ37DBZ5K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -554,6 +578,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"AIDatingApp/Preview Content\"";
+				DEVELOPMENT_TEAM = YXZ37DBZ5K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

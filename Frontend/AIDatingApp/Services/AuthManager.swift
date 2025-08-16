@@ -1,3 +1,11 @@
+//
+//  AuthManager.swift
+//  AIDatingApp
+//
+//  Created by Xiaomeng Jiang on 8/15/25.
+//
+
+
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore

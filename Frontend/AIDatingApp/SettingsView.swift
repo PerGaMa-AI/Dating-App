@@ -1,3 +1,11 @@
+//
+//  SettingsView.swift
+//  AIDatingApp
+//
+//  Created by Xiaomeng Jiang on 8/15/25.
+//
+
+
 import SwiftUI
 import FirebaseAuth
 
@@ -43,7 +51,7 @@ struct SettingsView: View {
         }
         do {
             try Auth.auth().signOut()
-            // 完成：RootGateView 会监听到登录状态变化并切回登录页（见 B）
+            // 完成：RootGateView 会监听到登录状态变化并切回登录页
         } catch {
             await MainActor.run {
                 errorText = error.localizedDescription
